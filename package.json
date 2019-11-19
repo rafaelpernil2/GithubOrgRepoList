@@ -1,0 +1,25 @@
+{
+  "name": "github-org-repo-list",
+  "version": "1.0.0",
+  "description": "It saves in a file the list of repositories of a Github Organisation filter using regexes",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js",
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rafaelpernil2/GithubOrgRepoList.git"
+  },
+  "keywords": [
+    "Github",
+    "Organisation",
+    "Repository"
+  ],
+  "author": "Rafael Pernil Bronchalo",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/rafaelpernil2/GithubOrgRepoList/issues"
+  },
+  "homepage": "https://github.com/rafaelpernil2/GithubOrgRepoList#readme"
+}
