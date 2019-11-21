@@ -141,7 +141,8 @@ async function getPropertyFromGithubRepoList(
     }
     // Get the list of repo names
     const filteredData = response["data"].map(element => element[githubPropertyName]);
-    accData = [...accData, ...filteredData];
+    accData = accData.concat(filteredData);
+
 
     nextPage = response.links.next;
     page = page + 1;
