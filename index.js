@@ -149,7 +149,7 @@ async function getPropertyFromGithubRepoList(
 
   const orRegexString = generateORRegexString(filterList);
   const regexProjectCategory = `.*(${orRegexString}).*`;
-  const regex = new RegExp(regexProjectCategory, "g");
+  const regex = new RegExp(regexProjectCategory);
 
   let final = accData.filter(element => regex.test(element));
 
