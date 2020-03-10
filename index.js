@@ -5,105 +5,13 @@
 // Performance tweaks
 const pageSize = 100;
 
+// Imports
 const https = require("https");
 const fs = require("fs");
 const util = require("util");
 const writeFilePromise = util.promisify(fs.writeFile);
 
-function createOrRegExp(array) {
-  const lastTerm = array.pop();
-  const partialRegex = array.reduce((acc, term) => acc = `${acc}${term}|`, "");
-  const totalRegex = `.*(${partialRegex}${lastTerm}).*`;
-  return new RegExp(totalRegex);
-}
-
-function parseLink(linkBlock) {
-
-  const parsedLinkObject = {};
-  const linksArray = linkBlock.split(",");
-
-  for (link of linksArray) {
-    const linkInfo = /<([^>]+)>;\s+rel="([^"]+)"/gi.exec(link);
-    const linkData = {
-      url: linkInfo[1],
-      relation: linkInfo[2]
-    }
-    parsedLinkObject[linkData.relation] = getRelativeURL(linkData.url);
-  }
-
-  return parsedLinkObject;
-}
-
-function getRelativeURL(url) {
-  const splittedURL = url.split("/");
-  const host = splittedURL[0] + "//" + splittedURL[2];
-  return url.replace(host, "");
-}
-
-function httpsRequestPromise(options) {
-  return new Promise((resolve, reject) => {
-    const req = https.request(options, res => {
-      let data = "";
-
-      res.on("data", chunk => {
-        data += chunk;
-      });
-
-      const link = res.headers.link;
-
-      res.on("end", () => {
-        const response = JSON.parse(data);
-        if (response.message === "Bad credentials") {
-          reject("Bad credentials");
-        } else {
-          resolve({ data: response, links: parseLink(link) });
-        }
-      });
-    });
-
-    req.on("error", error => {
-      reject(error);
-    });
-
-    req.end();
-  }).catch(reason => {
-    new Error(reason);
-  });
-}
-
-function resultProcessing(array, filterList) {
-  // Create Regex filter
-  const orRegex = createOrRegExp(filterList);
-  // Filter by regex
-  const final = array.filter(element => orRegex.test(element));
-  // Order the result
-  orderResultsArray(final);
-
-  return final;
-}
-
-async function writeToFile(result, outputPath, orgName) {
-  // Write to file
-  await writeFilePromise(outputPath, result.join("\n"), "utf8").then(
-    () => {
-      console.log(
-        `Your list of GitHub projects from ${orgName} is ready and saved at ${outputPath}!`
-      );
-    },
-    reason => {
-      throw new Error(
-        `The file ${outputPath} could not be saved due to: ${reason}`
-      );
-    }
-  );
-}
-
-function orderResultsArray(array) {
-  array.sort((a, b) => {
-    return a.localeCompare(b);
-  });
-}
-
+// Functions
 function processConsoleInput() {
   let processedInput;
   const helpString = "PARAMETERS:\n" +
@@ -165,6 +73,102 @@ async function getPropertyFromGithubRepoList(token, orgName, githubPropertyName)
   }
   return accData;
 
+}
+
+function httpsRequestPromise(options) {
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, res => {
+      let data = "";
+
+      res.on("data", chunk => {
+        data += chunk;
+      });
+
+      const link = res.headers.link;
+
+      res.on("end", () => {
+        const response = JSON.parse(data);
+        if (response.message === "Bad credentials") {
+          reject("Bad credentials");
+        } else {
+          resolve({ data: response, links: parseLink(link) });
+        }
+      });
+    });
+
+    req.on("error", error => {
+      reject(error);
+    });
+
+    req.end();
+  }).catch(reason => {
+    new Error(reason);
+  });
+}
+
+function parseLink(linkBlock) {
+
+  const parsedLinkObject = {};
+  const linksArray = linkBlock.split(",");
+
+  for (link of linksArray) {
+    const linkInfo = /<([^>]+)>;\s+rel="([^"]+)"/gi.exec(link);
+    const linkData = {
+      url: linkInfo[1],
+      relation: linkInfo[2]
+    }
+    parsedLinkObject[linkData.relation] = getRelativeURL(linkData.url);
+  }
+
+  return parsedLinkObject;
+}
+
+function getRelativeURL(url) {
+  const splittedURL = url.split("/");
+  const host = splittedURL[0] + "//" + splittedURL[2];
+  return url.replace(host, "");
+}
+
+
+function resultProcessing(array, filterList) {
+  // Create Regex filter
+  const orRegex = createOrRegExp(filterList);
+  // Filter by regex
+  const final = array.filter(element => orRegex.test(element));
+  // Order the result
+  orderResultsArray(final);
+
+  return final;
+}
+
+function createOrRegExp(array) {
+  const lastTerm = array.pop();
+  const partialRegex = array.reduce((acc, term) => acc = `${acc}${term}|`, "");
+  const totalRegex = `.*(${partialRegex}${lastTerm}).*`;
+  return new RegExp(totalRegex);
+}
+
+function orderResultsArray(array) {
+  array.sort((a, b) => {
+    return a.localeCompare(b);
+  });
+}
+
+
+async function writeToFile(result, outputPath, orgName) {
+  // Write to file
+  await writeFilePromise(outputPath, result.join("\n"), "utf8").then(
+    () => {
+      console.log(
+        `Your list of GitHub projects from ${orgName} is ready and saved at ${outputPath}!`
+      );
+    },
+    reason => {
+      throw new Error(
+        `The file ${outputPath} could not be saved due to: ${reason}`
+      );
+    }
+  );
 }
 
 // Main
