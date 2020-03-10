@@ -143,7 +143,7 @@ function resultProcessing(array, filterList) {
 
 function createOrRegExp(array) {
   const lastTerm = array.pop();
-  const partialRegex = array.reduce((acc, term) => acc = `${acc}${term}|`, "");
+  const partialRegex = array.reduce((acc, term) => `${acc}${term}|`, "");
   const totalRegex = `.*(${partialRegex}${lastTerm}).*`;
   return new RegExp(totalRegex);
 }
