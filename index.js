@@ -2,43 +2,42 @@
  * Author: Rafael Pernil Bronchalo
  */
 
+// Performance tweaks
+const pageSize = 100;
+
 const https = require("https");
 const fs = require("fs");
 const util = require("util");
 const writeFilePromise = util.promisify(fs.writeFile);
 
-function generateORRegexString(array) {
-  let regexString = "";
-
-  for (let index = 0; index < array.length; index++) {
-    const type = array[index];
-
-    regexString = regexString + type;
-    if (index < array.length - 1) {
-      regexString = regexString + "|";
-    }
-  }
-
-  return regexString;
+function createOrRegExp(array) {
+  const lastTerm = array.pop();
+  const partialRegex = array.reduce((acc, term) => acc = `${acc}${term}|`, "");
+  const totalRegex = `.*(${partialRegex}${lastTerm}).*`;
+  return new RegExp(totalRegex);
 }
 
 function parseLink(linkBlock) {
-  let linksArray = linkBlock;
-  linkBlock = linksArray.length == 2 ? linksArray[1] : linkBlock;
-  let parsedLinkObject = {};
 
-  linksArray = linkBlock.split(",");
+  const parsedLinkObject = {};
+  const linksArray = linkBlock.split(",");
 
   for (link of linksArray) {
-    linkInfo = /<([^>]+)>;\s+rel="([^"]+)"/gi.exec(link);
-
-    const splittedURL = linkInfo[1].split("/");
-    const host = splittedURL[0] + "//" + splittedURL[2];
-    const urlWithoutHost = linkInfo[1].replace(host, "");
-    parsedLinkObject[linkInfo[2]] = urlWithoutHost;
+    const linkInfo = /<([^>]+)>;\s+rel="([^"]+)"/gi.exec(link);
+    const linkData = {
+      url: linkInfo[1],
+      relation: linkInfo[2]
+    }
+    parsedLinkObject[linkData.relation] = getRelativeURL(linkData.url);
   }
 
   return parsedLinkObject;
+}
+
+function getRelativeURL(url) {
+  const splittedURL = url.split("/");
+  const host = splittedURL[0] + "//" + splittedURL[2];
+  return url.replace(host, "");
 }
 
 function httpsRequestPromise(options) {
@@ -70,6 +69,33 @@ function httpsRequestPromise(options) {
   }).catch(reason => {
     new Error(reason);
   });
+}
+
+function resultProcessing(array, filterList) {
+  // Create Regex filter
+  const orRegex = createOrRegExp(filterList);
+  // Filter by regex
+  const final = array.filter(element => orRegex.test(element));
+  // Order the result
+  orderResultsArray(final);
+
+  return final;
+}
+
+async function writeToFile(result, outputPath, orgName) {
+  // Write to file
+  await writeFilePromise(outputPath, result.join("\n"), "utf8").then(
+    () => {
+      console.log(
+        `Your list of GitHub projects from ${orgName} is ready and saved at ${outputPath}!`
+      );
+    },
+    reason => {
+      throw new Error(
+        `The file ${outputPath} could not be saved due to: ${reason}`
+      );
+    }
+  );
 }
 
 function orderResultsArray(array) {
@@ -105,20 +131,11 @@ function processConsoleInput() {
       break;
   }
 
-
-
   return processedInput;
 }
 
-async function getPropertyFromGithubRepoList(
-  token,
-  orgName,
-  githubPropertyName,
-  outputPath,
-  filterList
-) {
+async function getPropertyFromGithubRepoList(token, orgName, githubPropertyName) {
   let page = 1;
-  const pageSize = 100;
   let accData = [];
 
   // Initial page
@@ -143,44 +160,26 @@ async function getPropertyFromGithubRepoList(
     const filteredData = response["data"].map(element => element[githubPropertyName]);
     accData = accData.concat(filteredData);
 
-
     nextPage = response.links.next;
     page = page + 1;
   }
+  return accData;
 
-  const orRegexString = generateORRegexString(filterList);
-  const regexProjectCategory = `.*(${orRegexString}).*`;
-  const regex = new RegExp(regexProjectCategory);
-
-  let final = accData.filter(element => regex.test(element));
-
-  orderResultsArray(final);
-
-  await writeFilePromise(outputPath, final.join("\n"), "utf8").then(
-    () => {
-      console.log(
-        `Your list of GitHub projects from ${orgName} is ready and saved at ${outputPath}!`
-      );
-    },
-    reason => {
-      throw new Error(
-        `The file ${outputPath} could not be saved due to: ${reason}`
-      );
-    }
-  );
 }
 
 // Main
-const input = processConsoleInput();
+(async () => {
+  const input = processConsoleInput();
 
-if (input) {
-  getPropertyFromGithubRepoList(
-    input.token,
-    input.orgName,
-    input.githubPropertyName,
-    input.outputPath,
-    input.filterList
-  ).catch(reason => {
-    console.error(reason);
-  });
-}
+  if (input) {
+    const result = await getPropertyFromGithubRepoList(
+      input.token,
+      input.orgName,
+      input.githubPropertyName
+    ).catch(reason => {
+      console.error(reason);
+    });
+    const final = resultProcessing(result, input.filterList);
+    await writeToFile(final, input.outputPath, input.orgName);
+  }
+})();
